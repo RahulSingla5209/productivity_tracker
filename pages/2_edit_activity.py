@@ -1,76 +1,117 @@
 import streamlit as st
-import json
-import os
+import pandas as pd
 import datetime
+import re
+import uuid
+from common import get_supabase, get_browser_timezone, to_local_series, back_to_feed
 
-ACTIVITIES_FILE = "activities.json"
+st.header("✏️ Edit or Delete Activities")
 
-def load_activities():
-    if os.path.exists(ACTIVITIES_FILE):
-        with open(ACTIVITIES_FILE, "r") as f:
-            return json.load(f)
-    return []
+supabase = get_supabase()
+BUCKET = "activity-images"
 
-def save_activities(activities):
-    with open(ACTIVITIES_FILE, "w") as f:
-        json.dump(activities, f, indent=2)
+def public_url(filename: str) -> str:
+    return supabase.storage.from_(BUCKET).get_public_url(filename)
 
-def main():
-    st.header("✏️ Edit or Delete Activities")
-    activities = load_activities()
-    
-    if not activities:
-        st.info("No activities to edit. Add some activities first!")
-        return
+def filename_from_url(url: str | None) -> str | None:
+    if not url: return None
+    url = url.split("?")[0]
+    m = re.search(r"/activity-images/([^/]+)$", url)
+    return m.group(1) if m else None
 
-    # Show activities in a table, most recent first
-    activities_sorted = list(reversed(activities))
-    activity_labels = [
-        f"{act['date']} | {act['name']} ({act['category']}) [{act['points']} pts] - {act['user']}"
-        for act in activities_sorted
-    ]
-    selected = st.selectbox("Select an activity to edit or delete:", activity_labels)
+# Load
+resp = supabase.table("activities").select("*").order("date", desc=True).execute()
+df = pd.DataFrame(resp.data or [])
+if df.empty:
+    st.info("No activities to edit. Add some activities first!")
+    if st.button("← Back to Feed"):
+        back_to_feed()
+    st.stop()
 
-    selected_idx = activity_labels.index(selected)
-    selected_activity = activities_sorted[selected_idx]
+# Localized times for display
+tz = get_browser_timezone("tz-edit")
+df["date_local"] = to_local_series(df["date"], tz)
+df["duration_minutes"] = pd.to_numeric(df.get("duration_minutes"), errors="coerce").fillna(0).astype(int)
 
-    # Edit form
-    with st.form("edit_activity_form"):
-        new_name = st.text_input("Activity Name", selected_activity["name"])
-        new_category = st.selectbox("Category", [
-            "Physical Workout", "Mental Workout", "Creative Exercise", "Others"
-        ], index=[
-            "Physical Workout", "Mental Workout", "Creative Exercise", "Others"
-        ].index(selected_activity["category"]))
-        new_points = st.number_input("Points", min_value=1, max_value=100, value=int(selected_activity["points"]))
-        new_user = st.text_input("User", selected_activity["user"])
-        date_val = datetime.datetime.strptime(selected_activity["date"], "%Y-%m-%d %H:%M")
-        new_date = st.date_input("Date", date_val.date())
-        new_time = st.time_input("Time", date_val.time())
-        
-        edit_submitted = st.form_submit_button("Save Changes")
-        delete_submitted = st.form_submit_button("Delete Activity")
+# Optional filter by user
+users = ["All Users"] + sorted(df["user"].dropna().unique().tolist())
+sel_user = st.selectbox("Filter by user (optional)", users, index=0)
+dfv = df if sel_user == "All Users" else df[df["user"] == sel_user]
 
-        if edit_submitted:
-            # Update the activity in the list
-            updated_activity = {
-                "name": new_name,
-                "category": new_category,
-                "points": int(new_points),
-                "user": new_user,
-                "date": datetime.datetime.combine(new_date, new_time).strftime("%Y-%m-%d %H:%M")
-            }
-            # Find original index in the file
-            orig_idx = len(activities) - 1 - selected_idx
-            activities[orig_idx] = updated_activity
-            save_activities(activities)
-            st.success("Activity updated! Refresh or re-select to see changes.")
+def label_row(r):
+    when = r["date_local"].strftime("%Y-%m-%d %H:%M") if pd.notnull(r["date_local"]) else "?"
+    return f"{when} | {r['name']} ({r['category']}) [{r['duration_minutes']} min] — {r['user']}"
 
-        if delete_submitted:
-            orig_idx = len(activities) - 1 - selected_idx
-            activities.pop(orig_idx)
-            save_activities(activities)
-            st.success("Activity deleted! Refresh to update the list.")
+labels = [label_row(r) for _, r in dfv.iterrows()]
+choice = st.selectbox("Pick an activity to edit/delete:", labels)
+row = dfv.iloc[labels.index(choice)]
 
-if __name__ == "__main__":
-    main()
+act_id = row["id"]
+old_img = row.get("image_url", "")
+
+default_dt = row["date_local"] if pd.notnull(row["date_local"]) else datetime.datetime.now()
+default_date = default_dt.date()
+default_time = default_dt.time()
+
+with st.form("edit_form"):
+    new_name = st.text_input("Activity Name", value=row.get("name", ""))
+    new_cat = st.selectbox(
+        "Category",
+        ["Physical Workout", "Mental Workout", "Creative Exercise", "Others"],
+        index=["Physical Workout", "Mental Workout", "Creative Exercise", "Others"].index(row.get("category", "Others"))
+        if row.get("category", "Others") in ["Physical Workout", "Mental Workout", "Creative Exercise", "Others"] else 3
+    )
+    new_mins = st.number_input("Duration (minutes)", min_value=1, max_value=1440, value=int(row.get("duration_minutes", 30) or 30))
+    new_user = st.text_input("User", value=row.get("user", "Anonymous"))
+    new_date = st.date_input("Date", value=default_date)
+    new_time = st.time_input("Time", value=default_time)
+
+    st.caption("Replace image (optional)")
+    new_image = st.file_uploader("Upload new image", type=["jpg", "jpeg", "png"], accept_multiple_files=False)
+
+    c1, c2 = st.columns(2)
+    save = c1.form_submit_button("💾 Save Changes")
+    delete = c2.form_submit_button("🗑️ Delete Activity")
+
+if save:
+    naive_dt = datetime.datetime.combine(new_date, new_time)
+    dt_local = naive_dt.replace(tzinfo=tz) if tz else naive_dt
+
+    updates = {
+        "name": new_name.strip() or row.get("name", ""),
+        "category": new_cat,
+        "duration_minutes": int(new_mins),
+        "user": new_user.strip() or "Anonymous",
+        "date": dt_local.isoformat(),
+    }
+
+    if new_image is not None:
+        ext = new_image.name.split(".")[-1].lower()
+        new_filename = f"{uuid.uuid4()}.{ext}"
+        supabase.storage.from_(BUCKET).upload(new_filename, new_image.getvalue())
+        updates["image_url"] = public_url(new_filename)
+        old_file = filename_from_url(old_img or "")
+        if old_file:
+            try:
+                supabase.storage.from_(BUCKET).remove([old_file])
+            except Exception:
+                pass
+
+    supabase.table("activities").update(updates).eq("id", act_id).execute()
+    st.success("Activity updated.")
+    st.rerun()
+
+if delete:
+    supabase.table("activities").delete().eq("id", act_id).execute()
+    old_file = filename_from_url(old_img or "")
+    if old_file:
+        try:
+            supabase.storage.from_(BUCKET).remove([old_file])
+        except Exception:
+            pass
+    st.success("Activity deleted.")
+    st.rerun()
+
+st.markdown("---")
+if st.button("← Back to Feed"):
+    back_to_feed()

@@ -1,0 +1,6 @@
+archive/activity_tracker.py
+.streamlit/secrets.toml
+password
+*.json
+*.pyc
+*.jpeg
