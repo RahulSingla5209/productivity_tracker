@@ -1,7 +1,10 @@
 import streamlit as st
 import datetime
 import uuid
+from pathlib import Path
 from common import get_supabase, get_browser_timezone, back_to_feed
+
+st.markdown(Path("styles.css").read_text(), unsafe_allow_html=True)
 
 st.header("➕ Add Your Offline Activity")
 

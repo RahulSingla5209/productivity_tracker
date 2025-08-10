@@ -3,7 +3,10 @@ import pandas as pd
 import datetime
 import re
 import uuid
+from pathlib import Path
 from common import get_supabase, get_browser_timezone, to_local_series, back_to_feed
+
+st.markdown(Path("styles.css").read_text(), unsafe_allow_html=True)
 
 st.header("✏️ Edit or Delete Activities")
 
