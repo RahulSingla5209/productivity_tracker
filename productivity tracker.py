@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from common import get_supabase, get_browser_timezone, to_local_series, go_to_add_activity
 
+st.set_page_config(page_title="Productivity Tracker", page_icon="📋", layout="wide")
+
 st.header("📋 Activity Feed")
 
 supabase = get_supabase()

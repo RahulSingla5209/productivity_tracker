@@ -3,6 +3,8 @@ import datetime
 import uuid
 from common import get_supabase, get_browser_timezone, back_to_feed
 
+st.set_page_config(page_title="Productivity Tracker", page_icon="📋", layout="wide")
+
 st.header("➕ Add Your Offline Activity")
 
 supabase = get_supabase()
