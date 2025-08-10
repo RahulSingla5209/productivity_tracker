@@ -137,13 +137,13 @@ def to_local_series(ts_series, tz: ZoneInfo | None):
 
 # ---------------- Navigation ----------------
 def go_to_feed():
-    st.switch_page("pages/1_Feed.py")
+    st.switch_page("pages/1_feed.py")
 
 def go_to_add():
-    st.switch_page("pages/2_Add_Activity.py")
+    st.switch_page("pages/2_add_activity.py")
 
 def go_to_profile():
-    st.switch_page("pages/4_Profile.py")
+    st.switch_page("pages/4_profile.py")
 
 # ---------------- Flash messages ----------------
 def flash_success(msg: str):
