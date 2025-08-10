@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
 from pathlib import Path
-from common import get_supabase, get_browser_timezone, to_local_series, go_to_add_activity
+from common import get_supabase, get_browser_timezone, to_local_series
+
+st.set_page_config(page_title="Productivity Tracker", page_icon="📋", layout="wide")
 
 st.markdown(Path("styles.css").read_text(), unsafe_allow_html=True)
 
@@ -12,31 +14,32 @@ supabase = get_supabase()
 # Fetch activities
 resp = supabase.table("activities").select("*").execute()
 data = resp.data or []
+df = pd.DataFrame(data)
 
-if not data:
-    st.info("No activities to show yet. Add some activities!")
+with st.sidebar:
     if st.button("➕ Add Activity"):
-        go_to_add_activity()
+        st.switch_page("pages/1_add_activity.py")
+    if st.button("✏️ Edit Activity"):
+        st.switch_page("pages/2_edit_activity.py")
+    if not df.empty and "user" in df:
+        st.subheader("User Filter")
+        users = ["All Users"] + sorted(df["user"].dropna().unique().tolist())
+        selected_user = st.selectbox("Select user for plots", users, index=0)
+    else:
+        selected_user = "All Users"
+
+if df.empty:
+    st.info("No activities to show yet. Use the sidebar to add some activities!")
     st.stop()
 
-df = pd.DataFrame(data)
+if selected_user != "All Users":
+    df = df[df["user"] == selected_user]
 
 # Timezone-aware display
 tz = get_browser_timezone("tz-feed")
 df["date_local"] = to_local_series(df["date"], tz)
 df["day"] = df["date_local"].dt.date
 df["duration_minutes"] = pd.to_numeric(df.get("duration_minutes"), errors="coerce").fillna(0).astype(int)
-
-# User filter
-st.subheader("User Filter")
-users = ["All Users"] + sorted(df["user"].dropna().unique().tolist())
-selected_user = st.selectbox("Select user for plots", users, index=0)
-if selected_user != "All Users":
-    df = df[df["user"] == selected_user]
-
-st.markdown("---")
-if st.button("➕ Add Activity"):
-    go_to_add_activity()
 
 # Minutes per day by category
 grouped = df.groupby(["day", "category"])["duration_minutes"].sum().reset_index()
