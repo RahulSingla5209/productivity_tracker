@@ -13,12 +13,20 @@ now_local = datetime.datetime.now(tz) if tz else datetime.datetime.now()
 
 with st.form("add_activity_form"):
     user = st.text_input("Your Name (for the feed)", value="You")
-    activity = st.text_input("Describe your activity (e.g., Jog, Sudoku, Painting)")
-    category = st.selectbox("Select Activity Category", CATEGORIES)
+
+    col_act, col_cat = st.columns(2)
+    with col_act:
+        activity = st.text_input("Describe your activity (e.g., Jog, Sudoku, Painting)")
+    with col_cat:
+        category = st.selectbox("Select Activity Category", CATEGORIES)
+
     duration = st.number_input("Duration (minutes)", min_value=1, max_value=1440, value=30)
 
-    date_input = st.date_input("Date of Activity", value=now_local.date())
-    time_input = st.time_input("Time of Activity", value=now_local.time())
+    col_date, col_time = st.columns(2)
+    with col_date:
+        date_input = st.date_input("Date of Activity", value=now_local.date())
+    with col_time:
+        time_input = st.time_input("Time of Activity", value=now_local.time())
 
     image_file = st.file_uploader("Attach a photo (optional)", type=["jpg", "jpeg", "png"])
 
