@@ -48,12 +48,14 @@ st.line_chart(pivot)
 if st.button("📷 Load Feed of Images"):
     st.subheader("Activity Image Gallery")
     images_df = df[(~df["image_url"].isna()) & (df["image_url"].astype(str).str.len() > 0)]
-    for _, row in images_df.iterrows():
+    num_cols = 3
+    cols = st.columns(num_cols)
+    for idx, (_, row) in enumerate(images_df.iterrows()):
         when = row["date_local"].strftime("%Y-%m-%d %H:%M") if pd.notnull(row["date_local"]) else ""
         mins = int(row.get("duration_minutes", 0) or 0)
-        st.image(
+        cols[idx % num_cols].image(
             row["image_url"],
             caption=f"{row['name']} ({row['category']}) • {row['user']} • {when} • {mins} min",
-            width=400,
+            width=250,
         )
     st.markdown("---")
