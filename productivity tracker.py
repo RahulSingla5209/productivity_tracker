@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from common import get_supabase, get_browser_timezone, to_local_series, go_to_add_activity
+from common import get_supabase, get_browser_timezone, to_local_series
 
 st.header("📋 Activity Feed")
 
@@ -9,13 +9,6 @@ supabase = get_supabase()
 # Fetch activities
 resp = supabase.table("activities").select("*").execute()
 data = resp.data or []
-
-if not data:
-    st.info("No activities to show yet. Add some activities!")
-    if st.button("➕ Add Activity"):
-        go_to_add_activity()
-    st.stop()
-
 df = pd.DataFrame(data)
 
 # Timezone-aware display
@@ -24,16 +17,24 @@ df["date_local"] = to_local_series(df["date"], tz)
 df["day"] = df["date_local"].dt.date
 df["duration_minutes"] = pd.to_numeric(df.get("duration_minutes"), errors="coerce").fillna(0).astype(int)
 
-# User filter
-st.subheader("User Filter")
-users = ["All Users"] + sorted(df["user"].dropna().unique().tolist())
-selected_user = st.selectbox("Select user for plots", users, index=0)
+# Sidebar: navigation and filter
+with st.sidebar:
+    if st.button("➕ Add Activity"):
+        st.switch_page("pages/1_add_activity.py")
+    if st.button("✏️ Edit Activity"):
+        st.switch_page("pages/2_edit_activity.py")
+
+    st.markdown("---")
+    st.subheader("User Filter")
+    users = ["All Users"] + sorted(df["user"].dropna().unique().tolist())
+    selected_user = st.selectbox("Select user for plots", users, index=0)
+
+if df.empty:
+    st.info("No activities to show yet. Add some activities!")
+    st.stop()
+
 if selected_user != "All Users":
     df = df[df["user"] == selected_user]
-
-st.markdown("---")
-if st.button("➕ Add Activity"):
-    go_to_add_activity()
 
 # Minutes per day by category
 grouped = df.groupby(["day", "category"])["duration_minutes"].sum().reset_index()
