@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
+from pathlib import Path
 from common import get_supabase, get_browser_timezone, to_local_series, go_to_add_activity
+
+st.markdown(Path("styles.css").read_text(), unsafe_allow_html=True)
 
 st.header("📋 Activity Feed")
 

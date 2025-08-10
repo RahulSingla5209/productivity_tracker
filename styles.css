@@ -1,0 +1,15 @@
+body {
+  font-family: 'Helvetica', sans-serif;
+  background-color: #F5F5F5;
+}
+
+.block-container {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.stButton>button {
+  background-color: #4CAF50;
+  color: white;
+  border-radius: 4px;
+}
