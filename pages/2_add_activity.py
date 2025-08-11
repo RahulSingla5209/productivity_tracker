@@ -14,7 +14,7 @@ user_chip()
 sb = get_supabase()
 
 activity = st.text_input("Activity Name")
-category = st.selectbox("Category", ["Work", "Exercise", "Study", "Leisure", "Other"])
+category = st.selectbox("Category", ["Creative Exercise", "Mental Workout", "Physical Workout", "Other"])
 duration = st.number_input("Duration (minutes)", min_value=0, max_value=1440)
 date_input = st.date_input("Date", dt.date.today())
 time_input = st.time_input("Time", dt.datetime.now().time())
@@ -53,7 +53,7 @@ if st.button("Save Activity"):
             flash_success(
                 f"Added: {activity} • {duration} min • [{category}] on {activity_datetime:%Y-%m-%d %H:%M %Z}"
             )
-            go_to_feed()
+            st.success(f"Added: {activity} • {duration} min • [{category}] on {activity_datetime:%Y-%m-%d %H:%M %Z}")
 
         except Exception as e:
             st.error(f"❌ Could not save activity: {e}")
