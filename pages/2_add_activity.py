@@ -30,7 +30,7 @@ if st.button("Save Activity"):
             img_url = None
             if image_file:
                 # Create a filename in your Supabase bucket
-                filename = f"{user['user_id']}_{dt.datetime.isoformat()}.png"
+                filename = f"{user['user_id']}_{activity_datetime}.png"
                 img_bytes = image_file.read()
 
                 # Upload to Supabase storage
@@ -46,7 +46,7 @@ if st.button("Save Activity"):
                 "name": activity.strip(),
                 "category": category,
                 "duration_minutes": int(duration),
-                "date": activity_datetime.isoformat(),
+                "date": activity_datetime,
                 "image_url": img_url
             }).execute()
 
