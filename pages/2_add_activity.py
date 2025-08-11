@@ -28,10 +28,8 @@ if st.button("Save Activity"):
             if image_file:
                 filename = f"{user['user_id']}_{date_slug}.png"
                 img_bytes = image_file.read()
-                sb.storage.from_("activity_images").upload(
-                    filename, img_bytes, {"content-type": "image/png", "upsert": True}
-                )
-                img_url = sb.storage.from_("activity_images").get_public_url(filename)
+                sb.storage.from_("activity-images").upload(filename, image_file.getvalue())
+                img_url = sb.storage.from_("activity_images").get_public_url(filename) or ""
 
             # Insert into DB (DATE column friendly)
             sb.table("activities").insert({
@@ -45,7 +43,7 @@ if st.button("Save Activity"):
             }).execute()
 
             flash_success(f"Added: {activity} • {duration} min • [{category}] on {activity_date:%Y-%m-%d}")
-            st.success(f"Added: {activity} • {duration} min • [{category}] on {activity_date:%Y-%m-%d}")
+            # st.success(f"Added: {activity} • {duration} min • [{category}] on {activity_date:%Y-%m-%d}")
 
         except Exception as e:
             st.error(f"❌ Could not save activity: {e}")
